@@ -1,0 +1,49 @@
+name: create-wikipedia-accounts
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: "Single username to create (leave empty to use batch file)"
+        required: false
+        default: ""
+      password:
+        description: "Password for the single username"
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 8 * * *"
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run account creator
+        run: |
+          if [ -n "${{ github.event.inputs.username }}" ]; then
+            python wiki_create.py \
+              --username "${{ github.event.inputs.username }}" \
+              --password "${{ github.event.inputs.password }}"
+          else
+            python wiki_create.py --batch batches/sample.json
+          fi
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-results
+          path: results.json
